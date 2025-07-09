@@ -83,22 +83,23 @@ class AudioBuffer:
         """Clear the buffer"""
         self.buffer = []
 
-def analyze_sentiment(text: str) -> dict:
-    """Analyze sentiment of text using TextBlob"""
-    analysis = TextBlob(text)
-    sentiment = "neutral"
-    
-    if analysis.sentiment.polarity > 0.1:
-        sentiment = "positive"
-    elif analysis.sentiment.polarity < -0.1:
-        sentiment = "negative"
-    
-    return {
-        "type": sentiment,
-        "confidence": abs(analysis.sentiment.polarity),
-        "polarity": analysis.sentiment.polarity,
-        "subjectivity": analysis.sentiment.subjectivity
-    }
+def analyze_sentiment_with_openai(text: str) -> dict:
+    """Analyze sentiment using OpenAI API"""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SENTIMENT_SYSTEM_PROMPT},
+                {"role": "user", "content": text}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,  # Lower temperature for more consistent sentiment analysis
+        )
+        json_response = json.loads(response.choices[0].message.content)
+        return json_response["sentiment"]
+    except Exception as e:
+        logger.error(f"Error analyzing sentiment with OpenAI: {e}")
+        return {"type": "neutral", "confidence": 0.0}
 
 async def transcribe_audio(audio_data: bytes) -> str:
     """Transcribe audio using OpenAI Whisper"""
@@ -138,6 +139,23 @@ The tips should be in the following json format:
 }}
 """
 
+SENTIMENT_SYSTEM_PROMPT = """
+You are a sentiment analysis expert. Analyze the sentiment of the given text and provide the sentiment type and confidence score.
+You must respond in the following JSON format:
+{{
+    "sentiment": {{
+        "type": "positive" | "negative" | "neutral",
+        "confidence": 0.95
+    }}
+}}
+
+Guidelines:
+- type: Must be exactly one of "positive", "negative", or "neutral"
+- confidence: A float between 0.0 and 1.0 representing how confident you are in the sentiment classification
+- Consider the overall tone, emotion, and context of the text
+- Be precise with confidence scores - higher confidence for clear sentiment, lower for ambiguous cases
+"""
+
 def get_ai_coaching_tips(text:str):
     try:
         response = client.chat.completions.create(
@@ -166,6 +184,16 @@ async def coaching_tips(request: Request):
     tips = get_ai_coaching_tips(transcript)
     return {"tips": tips}
 
+@app.post("/sentiment-analysis")
+async def sentiment_analysis(request: Request):
+    data = await request.json()
+    transcript = data.get("transcript", "")
+    if not transcript.strip():
+        return {"sentiment": {"type": "neutral", "confidence": 0.0}}
+    
+    sentiment = analyze_sentiment_with_openai(transcript)
+    return {"sentiment": sentiment}
+
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
@@ -189,12 +217,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     transcription = await transcribe_audio(wav_data)
                     print(transcription)
                     if transcription:
-                        sentiment = analyze_sentiment(transcription)
                         duration = audio_buffer.get_duration()
                         response = {
                             "type": "transcription",
                             "text": transcription,
-                            "sentiment": sentiment,
                             "timestamp": duration  # Send duration (seconds) instead of actual timestamp
                         }
                         await websocket.send_json(response)
