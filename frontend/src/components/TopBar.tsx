@@ -3,6 +3,8 @@ import { Mic, MicOff, Clock, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import AudioVisualizer from '@/components/AudioVisualizer';
+import { useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface TopBarProps {
   isRecording: boolean;
@@ -42,8 +44,43 @@ const TopBar: React.FC<TopBarProps> = ({
     }
   };
 
+  // Show alert popup if negative sentiment is more than 50%
+  const [showNegativeAlert, setShowNegativeAlert] = useState(false);
+  useEffect(() => {
+    if (sentiment.type === 'negative' && sentiment.confidence >= 0.5) {
+      setShowNegativeAlert(true);
+    } else {
+      setShowNegativeAlert(false);
+    }
+  }, [sentiment]);
+
+  // CSS for shake animation
+  // Add this style to the document head if not already present
+  useEffect(() => {
+    const styleId = 'shake-keyframes-style';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        @keyframes shake {
+          0% { transform: translateX(0); }
+          20% { transform: translateX(-4px); }
+          40% { transform: translateX(4px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+          100% { transform: translateX(0); }
+        }
+        .shake {
+          animation: shake 0.6s infinite;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   return (
     <div className="h-full bg-card border-b flex items-center justify-between px-6">
+      {/* Negative Sentiment Alert Popup */}
       {/* Left Section - Recording Controls */}
       <div className="flex items-center space-x-4">
         <Button
@@ -87,7 +124,11 @@ const TopBar: React.FC<TopBarProps> = ({
           <span className="ml-2 text-xs text-muted-foreground">Total Words</span>
         </div>
         <div className="flex items-center">
-          <AlertTriangle className={`h-5 w-5 mr-2 ${getSentimentColor(sentiment.type)}`} />
+          {showNegativeAlert && (
+            <AlertTriangle
+              className={`h-5 w-5 mr-2 shake text-red-500`}
+            />
+          )}
           <Badge variant={sentiment.type === 'positive' ? 'default' : sentiment.type === 'negative' ? 'destructive' : 'secondary'}>
             Overall: {sentiment.type} ({Math.round(sentiment.confidence * 100)}%)
           </Badge>

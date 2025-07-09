@@ -21,10 +21,16 @@ const Index = () => {
   const { sentiment, sentimentHistory, analyzeSentiment } = useSentimentAnalysis();
 
   // Handle real-time transcription from WebSocket
-  const handleTranscription = useCallback((text: string, sentimentData: any) => {
-    addTranscription(text, 'user', sentimentData.type);
-    analyzeSentiment(text);
-    setWordCount(prev => prev + text.split(' ').length);
+  const handleTranscription = useCallback((text: string, sentimentData: any, duration?: number, sentimentConfidence?: number) => {
+    if (sentimentData) {
+      // Recording has stopped, sentiment is available
+      addTranscription(text, 'user', sentimentData.type, false, duration, sentimentConfidence);
+      analyzeSentiment(text);
+      setWordCount(prev => prev + text.split(' ').length);
+    } else {
+      // Recording is ongoing, update the current transcription block
+      addTranscription(text, 'user', null, true); // Pass true for live update
+    }
   }, [addTranscription, analyzeSentiment]);
 
   const { audioLevel, startCapture, stopCapture, isSupported, isRecording, isConnected } = useAudioCapture({
@@ -107,6 +113,9 @@ const Index = () => {
 
   const totalWordCount = transcription.reduce((sum, t) => sum + t.text.split(' ').length, 0);
 
+  // Calculate total time from all transcription durations
+  const totalTimeFromTranscriptions = transcription.reduce((sum, t) => sum + (t.duration || 0), 0);
+  const totalTimeInSeconds = Math.floor(totalTimeFromTranscriptions / 1000);
 
   if (!isSupported) {
     return (
@@ -135,7 +144,7 @@ const Index = () => {
             isRecording={isRecording}
             onStartRecording={handleStartRecording}
             onStopRecording={handleStopRecording}
-            conversationDuration={totalDuration + (isRecording ? conversationDuration : 0)}
+            conversationDuration={totalTimeInSeconds + (isRecording ? conversationDuration : 0)}
             wordCount={totalWordCount}
             audioLevel={audioLevel}
             sentiment={overallSentiment}

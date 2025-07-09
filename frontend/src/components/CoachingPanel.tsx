@@ -124,7 +124,7 @@ const CoachingPanel: React.FC<CoachingPanelProps> = ({
                 <ul className="list-disc pl-5">
                   {coachingTips.map((tip, idx) => (
                     <li key={idx} className="mb-1">
-                      {tip.tip} <span className="text-xs text-muted-foreground">(Confidence: {tip.confidence})</span>
+                      {tip.tip} 
                     </li>
                   ))}
                 </ul>

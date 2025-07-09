@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWebSocket } from './useWebSocket';
 
 interface AudioCaptureOptions {
-  onTranscription?: (transcription: string, sentiment: any) => void;
+  onTranscription?: (transcription: string, sentiment: any, duration?: number, sentimentConfidence?: number) => void;
   websocketUrl?: string;
   onError?: (error: Error) => void;
 }
@@ -23,14 +23,21 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   // Buffer to accumulate audio samples for 2 seconds
   const bufferedSamplesRef = useRef<Int16Array[]>([]);
   const bufferedLengthRef = useRef<number>(0);
-  const SAMPLES_PER_CHUNK = 16000 * 2; // 2 seconds at 16kHz
+  const SAMPLES_PER_CHUNK = 16000 * 5; // 2 seconds at 16kHz
+  
+  // Accumulate transcription text during recording
+  const accumulatedTranscriptRef = useRef<string>('');
+  const recordingStartTimeRef = useRef<number>(0);
   
   const { isConnected, connect, disconnect, sendMessage } = useWebSocket({
     url: websocketUrl,
     onMessage: (message) => {
       console.log('WebSocket message:', message);
-      if (message.type === 'transcription' && options.onTranscription) {
-        options.onTranscription(message.text, message.sentiment);
+      if (message.type === 'transcription') {
+        // Accumulate transcription text during recording
+        accumulatedTranscriptRef.current += (accumulatedTranscriptRef.current ? ' ' : '') + message.text;
+        // Call onTranscription with accumulated text but no sentiment during recording
+        options.onTranscription?.(accumulatedTranscriptRef.current, null);
       }
     },
     onError: (error) => {
@@ -60,6 +67,9 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   const startCapture = useCallback(async () => {
     try {
       console.log('Starting capture');
+      // Clear accumulated transcript when starting new recording
+      accumulatedTranscriptRef.current = '';
+      recordingStartTimeRef.current = Date.now();
       // Connect to WebSocket first
       if (!isConnected) {
         connect();
@@ -149,9 +159,27 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   const stopCapture = useCallback(() => {
     setIsRecording(false);
     // Clear audio buffer
-    bufferedSamplesRef.current = [];
-    bufferedLengthRef.current = 0;
-    
+    if (bufferedLengthRef.current > 0) {
+      const totalSamples = bufferedLengthRef.current;
+      const combined = new Int16Array(totalSamples);
+      let offset = 0;
+      for (const chunk of bufferedSamplesRef.current) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+      sendMessage(combined.buffer);
+      bufferedSamplesRef.current = [];
+      bufferedLengthRef.current = 0;
+    }
+
+    // Get sentiment analysis for the full accumulated transcript
+    const finalTranscript = accumulatedTranscriptRef.current;
+    if (finalTranscript.trim()) {
+      // Call a function to get sentiment analysis
+      const recordingDuration = Date.now() - recordingStartTimeRef.current;
+      getSentimentAnalysis(finalTranscript, recordingDuration);
+    }
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -174,7 +202,24 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
 
     // disconnect();
     setAudioLevel(0);
-  }, [disconnect]);
+  }, [disconnect, sendMessage]);
+
+  const getSentimentAnalysis = async (transcript: string, duration: number) => {
+    try {
+      const response = await fetch('https://real-time-call-intelligence.onrender.com/sentiment-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      const data = await response.json();
+      // Call onTranscription with final transcript and sentiment
+      options.onTranscription?.(transcript, data.sentiment, duration, data.sentiment.confidence);
+    } catch (error) {
+      console.error('Error getting sentiment analysis:', error);
+      // Call onTranscription with neutral sentiment on error
+      options.onTranscription?.(transcript, { type: 'neutral', confidence: 0.0 }, duration, 0.0);
+    }
+  };
 
   return {
     audioLevel,

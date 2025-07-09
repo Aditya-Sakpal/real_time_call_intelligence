@@ -51,7 +51,7 @@ const SentimentPieChart: React.FC<SentimentPieChartProps> = ({ sentiment }) => {
             cy="50%"
             labelLine={false}
             label={renderCustomLabel}
-            outerRadius={80}
+            outerRadius={70}
             fill="#8884d8"
             dataKey="value"
           >

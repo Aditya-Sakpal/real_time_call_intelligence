@@ -11,6 +11,8 @@ interface TranscriptionEntry {
   timestamp: number;
   speaker: 'user' | 'agent';
   sentiment?: string;
+  sentimentConfidence?: number; // Added for confidence
+  duration?: number; // Duration in milliseconds
 }
 
 interface TranscriptionPanelProps {
@@ -53,6 +55,14 @@ const TranscriptionPanel: React.FC<TranscriptionPanelProps> = ({
     });
   };
 
+  const formatDuration = (duration: number) => {
+    const totalSeconds = Math.floor(duration / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
@@ -77,7 +87,7 @@ const TranscriptionPanel: React.FC<TranscriptionPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {transcription.map((entry) => (
+              {[...transcription].reverse().map((entry) => (
                 <div
                   key={entry.id}
                   className={`p-3 rounded-lg border-l-4 ${getSentimentColor(entry.sentiment)}`}
@@ -92,19 +102,33 @@ const TranscriptionPanel: React.FC<TranscriptionPanelProps> = ({
                       <span className="text-sm font-medium capitalize">
                         {entry.speaker === 'user' ? 'Customer' : 'Agent'}
                       </span>
+                      {entry.id.startsWith('live-') && (
+                        <Badge variant="outline" className="ml-2 text-xs animate-pulse">
+                          Live
+                        </Badge>
+                      )}
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {formatTime(entry.timestamp)}
+                      {entry.id.startsWith('live-') ? 'Recording...' : (entry.duration ? formatDuration(entry.duration) : formatTime(entry.timestamp))}
                     </span>
                   </div>
                   <p className="text-sm text-foreground">{entry.text}</p>
-                  {entry.sentiment && (
-                    <Badge 
-                      variant={entry.sentiment === 'positive' ? 'default' : 
-                              entry.sentiment === 'negative' ? 'destructive' : 'secondary'}
-                      className="mt-2 text-xs"
-                    >
-                      {entry.sentiment}
+                  {entry.sentiment ? (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <Badge 
+                        variant={entry.sentiment === 'positive' ? 'default' : 
+                                entry.sentiment === 'negative' ? 'destructive' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {entry.sentiment}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Confidence: {Math.round((entry.sentimentConfidence || 0) * 100)}%
+                      </span>
+                    </div>
+                  ) : entry.id.startsWith('live-') ? null : (
+                    <Badge variant="outline" className="mt-2 text-xs animate-pulse">
+                      Analyzing sentiment...
                     </Badge>
                   )}
                 </div>
