@@ -109,6 +109,7 @@ async def transcribe_audio(audio_data: bytes) -> str:
         
         # Use OpenAI API for transcription
         transcription = client.audio.transcriptions.create(
+            language="en",
             model="whisper-1",
             file=audio_file,
             response_format="text"
