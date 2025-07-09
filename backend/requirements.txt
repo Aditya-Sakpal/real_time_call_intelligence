@@ -3,3 +3,8 @@ python-dotenv
 sounddevice
 scipy
 keyboard
+textblob
+fastapi
+uvicorn[standard]
+websockets
+numpy
