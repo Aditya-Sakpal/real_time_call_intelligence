@@ -61,7 +61,7 @@ const Index = () => {
       // Gather the full transcript (assuming it's in `transcription`)
     const fullTranscript = transcription.map(t => t.text).join(' ');
     if (fullTranscript.trim()) {
-      const response = await fetch('http://localhost:8000/coaching-tips', {
+      const response = await fetch('https://real-time-call-intelligence.onrender.com/coaching-tips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: fullTranscript }),

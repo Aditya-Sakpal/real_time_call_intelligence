@@ -29,7 +29,7 @@ app = FastAPI(title="Real-Time Call Intelligence API")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:5173"],  # React dev server ports
+    allow_origins=["http://localhost:8080", "http://localhost:5173","https://real-time-call-intelligence.vercel.app"],  # React dev server ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

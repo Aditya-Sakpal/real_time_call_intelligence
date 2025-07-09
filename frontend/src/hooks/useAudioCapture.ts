@@ -18,7 +18,7 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
-  const websocketUrl = options.websocketUrl || `ws://localhost:8000/ws/${Math.random().toString(36).substr(2, 9)}`;
+  const websocketUrl = options.websocketUrl || `ws://real-time-call-intelligence.onrender.com/ws/${Math.random().toString(36).substr(2, 9)}`;
 
   // Buffer to accumulate audio samples for 2 seconds
   const bufferedSamplesRef = useRef<Int16Array[]>([]);
