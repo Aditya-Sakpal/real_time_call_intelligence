@@ -18,7 +18,10 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
-  const websocketUrl = options.websocketUrl || `wss://real-time-call-intelligence.onrender.com/ws/${Math.random().toString(36).substr(2, 9)}`;
+  // const websocketUrl = options.websocketUrl || `wss://real-time-call-intelligence.onrender.com/ws/${Math.random().toString(36).substr(2, 9)}`;
+  // https://real-time-call-intelligence-1.onrender.com
+  const websocketUrl = options.websocketUrl || `wss://real-time-call-intelligence-1.onrender.com/ws/${Math.random().toString(36).substr(2, 9)}`;
+  // const websocketUrl = options.websocketUrl || `ws://localhost:8000/ws/${Math.random().toString(36).substr(2, 9)}`;
 
   // Buffer to accumulate audio samples for 2 seconds
   const bufferedSamplesRef = useRef<Int16Array[]>([]);
@@ -159,6 +162,9 @@ export const useAudioCapture = (options: AudioCaptureOptions = {}) => {
   const stopCapture = useCallback(() => {
     setIsRecording(false);
     // Clear audio buffer
+    setTimeout(()=>{
+      console.log('bufferedLengthRef.current', bufferedLengthRef.current);
+    }, 2000)
     if (bufferedLengthRef.current > 0) {
       const totalSamples = bufferedLengthRef.current;
       const combined = new Int16Array(totalSamples);
